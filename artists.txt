@@ -1,10 +1,143 @@
 Radiohead
-Beatles
+The Beatles
 Pink Floyd
 David Bowie
 Bob Dylan
 Kendrick Lamar
-Led Zeppelin
-Rolling Stones
+Swans
+Björk
+The Rolling Stones
 Neil Young
 Kanye West
+Led Zeppelin
+Joni Mitchell
+Joy Division
+The Beach Boys
+MF DOOM
+Madvillain
+Sufjan Stevens
+Black Sabbath
+Death Grips
+King Crimson
+Modest Mouse
+Talking Heads
+The Velvet Underground
+OutKast
+The Smiths
+my bloody valentine
+Animal Collective
+Kate Bush
+The Cure
+Ween
+Iron Maiden
+A Tribe Called Quest
+The Microphones
+Stevie Wonder
+Wu-Tang Clan
+Metallica
+Elliott Smith
+Nirvana
+Arcade Fire
+Tool
+Queen
+Nick Drake
+Alice in Chains
+The Doors
+Michael Jackson
+Taylor Swift
+Elvis Presley
+Elton John
+Aretha Franklin
+Madonna
+Eminem
+Billy Joel
+Marvin Gaye
+Johnny Cash
+The Jimi Hendrix Experience
+Curtis Mayfield
+Nine Inch Nails
+Guns N’ Roses
+Santana
+JAY-Z
+2Pac
+U2
+Fleetwood Mac
+James Taylor
+Creedence Clearwater Revival
+Elvis Costello
+The Four Tops
+The Stooges
+Beastie Boys
+Eagles
+AC/DC
+Frank Zappa
+The Police
+The Temptations
+Al Green
+Bruce Springsteen
+Eric Clapton
+Patti Smith
+Janis Joplin
+The Doors
+Van Morrison
+Simon & Garfunkel
+The Who
+The Clash
+Otis Redding
+Sam Cooke
+Buddy Holly
+Bob Marley & The Wailers
+Ray Charles
+Little Richard
+James Brown
+Chuck Berry
+Aerosmith
+Nick Cave & The Bad Seeds
+Tom Waits
+PJ Harvey
+The Kinks
+Public Enemy
+The Byrds
+Beck
+Lou Reed
+Sonic Youth
+Oasis
+The Band
+Frank Sinatra
+Frank Ocean
+New Order
+Sly and the Family Stone
+Wilco
+Massive Attack
+Steely Dan
+Portishead
+Ramones
+Adele
+Beyoncé
+Eagles
+Rihanna
+Drake
+Mariah Carey
+Whitney Houston
+Céline Dion
+Justin Bieber
+Ed Sheeran
+Barbra Streisand
+Phil Collins
+ABBA
+Tina Turner
+Donna Summer
+Bruno Mars
+Chris Brown
+Lil Wayne
+Maroon 5
+Bee Gees
+Nicki Minaj
+Coldplay
+Red Hot Chili Peppers
+Linkin Park
+Bon Jovi
+Britney Spears
+Katy Perry
+Lady Gaga
+Justin Timberlake

@@ -1,8 +1,27 @@
 # %%
 from doctest import OutputChecker
+from lib2to3.pgen2 import token
 import pandas as pd
 import re
 from ast import literal_eval
+
+import os
+import dill
+from tqdm import tqdm
+def write_file(output_path, obj):
+    ## Write to file
+    if output_path is not None:
+        folder_path = os.path.dirname(output_path)  # create an output folder
+        if not os.path.exists(folder_path):  # mkdir the folder to store output files
+            os.makedirs(folder_path)
+        with open(output_path, 'wb') as f:
+            dill.dump(obj, f)
+    return True
+def read_file(path):
+    with open(path, 'rb') as f:
+        generator = dill.load(f)
+    return generator
+
 df = pd.read_csv("songs_with_lyrics.csv").drop(columns=["Unnamed: 0"])
 df['Lyrics'] = df['Lyrics'].map(literal_eval)
 
@@ -17,6 +36,7 @@ ids = [609, 617, 1760, 2014, 2097, 2186, 2247, 2253, 2265, 3157, 4190, 5453, 572
 df = df[~df.Id.isin(ids)]
 words = df['Lyrics'].map(count_words)
 df = df[words >= 50]
+df = df.reset_index(drop=True)
 
 # %%
 import numpy as np
@@ -86,7 +106,9 @@ def text_to_embedding(tokenizer, model, in_text):
     # ===========================
 
     MAX_LEN = 510
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:7'
+    device = torch.device(device)
+    print(device)
 
     # tokenizer will:
     #  (1) Tokenize the sentence
@@ -94,14 +116,20 @@ def text_to_embedding(tokenizer, model, in_text):
     #  (3) Append the '[SEP]' token to the end.
     #  (4) Map tokens to their IDs.
     print("Tokenizing...")
-    results = tokenizer(
-        in_text,                         # sentence to encode.
-        add_special_tokens = True,       # Add '[CLS]' and '[SEP]'
-        truncation=True,                 # Truncate all sentences.
-        max_length = MAX_LEN,            # Length to truncate to.
-        padding=True,                    # Pad to the longest sequence
-        return_attention_mask=True,      
-    )
+    output_path = "./output/bert_tokens"
+    if os.path.isfile(output_path):
+        results = read_file(output_path)
+    else:
+        results = tokenizer(
+            in_text,                         # sentence to encode.
+            add_special_tokens = True,       # Add '[CLS]' and '[SEP]'
+            truncation=True,                 # Truncate all sentences.
+            max_length = MAX_LEN,            # Length to truncate to.
+            padding=True,                    # Pad to the longest sequence
+            return_attention_mask=True,      
+        )
+        write_file(output_path, results)
+
     input_ids = results.input_ids
     attn_mask = results.attention_mask
 
@@ -138,14 +166,13 @@ def text_to_embedding(tokenizer, model, in_text):
         print("Running model...")
         print(input_ids.size(), attn_mask.size())
 
-        split_size = input_ids.size()[0]//128
+        split_size = input_ids.size()[0]//64
         full_input_ids = torch.split(input_ids, split_size)
         full_attn_mask = torch.split(attn_mask, split_size)
 
         token_vecs_batches = []
         for batch in range(len(full_input_ids)):
             input_id_batch = full_input_ids[batch]
-            print(input_id_batch.device)
             attn_mask_batch = full_attn_mask[batch]
 
             outputs = model(
@@ -161,16 +188,18 @@ def text_to_embedding(tokenizer, model, in_text):
             # application-dependent strategies, but a simple approach is to 
             # average the second to last hiden layer of each token producing 
             # a single 768 length vector.
-            # `hidden_states` has shape [13 x 1 x ? x 768]
+            # `hidden_states` has shape [13 x batch_size x 510 x 768]
 
-            # `token_vecs` is a tensor with shape [? x 768]
-            token_vecs_batch = torch.vstack((hidden_states[-4][0], hidden_states[-3][0], hidden_states[-2][0], hidden_states[-1][0]))
-            print(token_vecs_batch.size())
+            # Take mean of each vector for each token in the sequence after concatenating last 4 hidden layers
+            # `token_vecs` is a tensor with shape [batch_size x (768*4)]
+            token_vecs_batch = torch.mean(torch.cat((hidden_states[-4], hidden_states[-3], hidden_states[-2], hidden_states[-1]), dim=2), dim=1)
+            # print("Token vecs size:", token_vecs_batch.size())
 
             token_vecs_batches.append(token_vecs_batch)
 
-        # Calculate the average of all ? token vectors.
-        sentence_embedding = torch.mean(torch.stack(token_vecs_batches), dim=0)
+        # Stack all batches
+        sentence_embedding = torch.cat(token_vecs_batches)
+        print("Embedding size:", sentence_embedding.size())
             
         # Move to the CPU and convert to numpy ndarray.
         sentence_embedding = sentence_embedding.detach().cpu().numpy()
@@ -190,22 +219,6 @@ def Bert2Vec(df):
     return vectors
 
 # %%
-import os
-import dill
-def write_file(output_path, obj):
-    ## Write to file
-    if output_path is not None:
-        folder_path = os.path.dirname(output_path)  # create an output folder
-        if not os.path.exists(folder_path):  # mkdir the folder to store output files
-            os.makedirs(folder_path)
-        with open(output_path, 'wb') as f:
-            dill.dump(obj, f)
-    return True
-def read_file(path):
-    with open(path, 'rb') as f:
-        generator = dill.load(f)
-    return generator
-
 output_path = "./output/bert2vec"
 if os.path.isfile(output_path):
     token_features = read_file(output_path)
@@ -222,23 +235,66 @@ from sklearn.neighbors import NearestNeighbors
 id_to_title = {idx: row["Title"] for idx, row in df.iterrows()}
 neigh = NearestNeighbors(n_neighbors=6).fit(token_features)
 distances, neighbors = neigh.kneighbors(token_features)
+print(distances.shape, neighbors.shape)
 
 # %%
 i = np.random.choice(range(neighbors.shape[0]))
-for i,neighbor in enumerate(neighbors[i]):
-    print(df.iloc[neighbor][["Title", "Artist", "Lyrics"]], distances[neighbor][i])
+for j,neighbor in enumerate(neighbors[i]):
+    print(df.iloc[neighbor][["Title", "Artist", "Lyrics"]], distances[i][j])
     # titles = list(map(id_to_title.get, neighbors[i]))
     # print("{}: {}, {}, {}".format(i, titles[0], titles[1:4], distances[i][1:4]))
     print()
 
 # %%
-for i,neighbor in enumerate(neighbors[0]):
-    print(df.iloc[neighbor][["Title", "Artist", "Lyrics"]], distances[neighbor][i])
+i = df[df["Id"] == 2236].index[0]
+print(list(df.index)[-1], len(list(df.index)))
+for j,neighbor in enumerate(neighbors[i]):
+    print(df.iloc[neighbor][["Title", "Artist", "Lyrics"]], distances[0][j])
     # titles = list(map(id_to_title.get, neighbors[i]))
     # print("{}: {}, {}, {}".format(i, titles[0], titles[1:4], distances[i][1:4]))
     print()
 
 # %%
+nearest_neighbor_distances = []
+token_features = torch.tensor(token_features).to(torch.device("cuda:1"))
+for i in tqdm(range(len(token_features))):
+    distances = []
+    u = token_features[i].view(1, 1, -1)
+    for j in range(len(token_features)):
+        if i != j:
+            v = token_features[j].view(1, 1, -1)
+            distances.append(torch.cdist(u, v).flatten().item())
+    df = pd.DataFrame(data={"distance": distances})
+    nearest_neighbor_distances.append(list(df['distance'].nsmallest(10)))
 
+df = pd.DataFrame(data=nearest_neighbor_distances, columns=range(1,11))
+pd.set_option('display.float_format', lambda x: '%.4f' % x)
+print(df.describe())
+
+""" Vector Distances (all pairs)
+Mean: 16.166
+Min: 0.000
+1st: 6.836
+5th: 8.449
+10th: 9.568
+25th: 11.686
+50th: 14.961
+75th: 20.080
+90th: 24.584
+95th: 27.120
+99th: 31.181
+Max: 46.106
+"""
+""" 10 nearest neighbors of each song
+              1          2          3          4          5          6          7          8          9          10
+mean      7.1129     7.5079     7.6388     7.7229     7.7873     7.8381     7.8816     7.9201     7.9548     7.9877
+std       1.9810     1.7959     1.8024     1.8140     1.8252     1.8365     1.8461     1.8543     1.8635     1.8749
+min       0.0000     0.9644     2.5046     2.9372     3.6165     3.8429     3.8660     3.9146     4.0656     4.1007
+25%       5.7710     6.2108     6.3353     6.4016     6.4565     6.4979     6.5367     6.5722     6.6004     6.6245
+50%       7.2258     7.4985     7.6294     7.7009     7.7660     7.8182     7.8560     7.8954     7.9274     7.9588
+75%       8.3227     8.5920     8.7131     8.8029     8.8685     8.9243     8.9712     9.0175     9.0473     9.0784
+max      22.7241    22.8830    22.9643    22.9699    22.9905    23.2893    23.2904    23.3039    23.3858    23.3885
+"""
+# 
 
 
